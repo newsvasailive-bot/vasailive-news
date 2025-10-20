@@ -10,14 +10,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebas
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, doc, deleteDoc, updateDoc, onSnapshot, query, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey:"AIzaSyDMvkPqFKDjrMaLlBkercBYoLxEs1GEbng",
-  authDomain:"all-madrsa.firebaseapp.com",
-  projectId:"all-madrsa",
-  storageBucket:"all-madrsa.appspot.com",
-  messagingSenderId:"619313835874",
-  appId:"1:619313835874:web:e33f0c8bdef6d1a7f31e9f"
+  apiKey: "AIzaSyC9tqZWhUN_cCdps9e81lsOezoqEZL2XJA",
+  authDomain: "vasailive-news.firebaseapp.com",
+  databaseURL: "https://vasailive-news-default-rtdb.firebaseio.com",
+  projectId: "vasailive-news",
+  storageBucket: "vasailive-news.appspot.com", // ✅ corrected
+  messagingSenderId: "527720941491",
+  appId: "1:527720941491:web:9bd27e8bbc8f48b6b56dc6",
+  measurementId: "G-Z85WP0D6N3"
 };
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
