@@ -5,35 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vasai Live News</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, doc, deleteDoc, updateDoc, onSnapshot, query, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyC9tqZWhUN_cCdps9e81lsOezoqEZL2XJA",
-  authDomain: "vasailive-news.firebaseapp.com",
-  databaseURL: "https://vasailive-news-default-rtdb.firebaseio.com",
-  projectId: "vasailive-news",
-  storageBucket: "vasailive-news.appspot.com", // ✅ corrected
-  messagingSenderId: "527720941491",
-  appId: "1:527720941491:web:9bd27e8bbc8f48b6b56dc6",
-  measurementId: "G-Z85WP0D6N3"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const ADMIN_EMAIL = "newsvasailive@gmail.com";
-
-const IMGBB_API_KEY="ff902d7c63784748f5e28d5f29eef4cc";
-
-
-
-
-  
-</script>
 <style>
 body{margin:0;font-family:Arial,sans-serif;background:#f6f7fb;color:#0b2540;}
 header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#1e40af;color:white;position:sticky;top:0;z-index:300;box-shadow:0 2px 5px rgba(0,0,0,0.2);}
@@ -48,20 +20,17 @@ header img{height:50px;width:50px;border-radius:6px;margin-right:8px;object-fit:
 .posts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;padding:8px;margin-top:116px;}
 .card{background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 6px 20px rgba(2,6,23,0.06);cursor:pointer;transition:transform 0.2s;position:relative;}
 .card:hover{transform:scale(1.02);}
-.card img{width:100%;height:150px;object-fit:cover;cursor:zoom-in;transition:transform 0.3s;}
+.card img{width:100%;height:150px;object-fit:cover;}
 .card-body{padding:8px;}
 .card-body h3{font-weight:700;font-size:18px;margin-bottom:4px;}
 .card-body p{font-size:14px;color:#555;margin-bottom:6px;}
-.social-share{display:flex;gap:4px;margin-top:4px;}
-.social-share button{font-size:12px;padding:2px 4px;border-radius:4px;cursor:pointer;}
-.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);justify-content:center;align-items:center;z-index:400;overflow:hidden;}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);justify-content:center;align-items:center;z-index:400;}
 .modal{background:#fff;border-radius:10px;max-width:650px;width:90%;max-height:85%;overflow-y:auto;padding:16px;position:relative;}
 .modal img{max-width:100%;border-radius:10px;margin-bottom:6px;}
 .modal-close{position:absolute;top:10px;right:15px;background:#fff;border:none;border-radius:50%;padding:5px 10px;cursor:pointer;font-weight:bold;}
 .editor{padding:12px;background:#fff;margin:6px;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
 .editor input,.editor textarea{border:1px solid #ccc;border-radius:6px;padding:6px;margin-bottom:6px;width:100%;}
 .editor button{padding:6px 12px;margin-right:6px;border-radius:6px;background:#1e40af;color:white;cursor:pointer;}
-.image-zoom:hover{transform:scale(1.05);}
 .zoom-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);justify-content:center;align-items:center;z-index:9999;}
 .zoom-modal img{max-width:90%;max-height:90%;border-radius:10px;box-shadow:0 0 25px rgba(255,255,255,0.3);}
 .zoom-close{position:absolute;top:20px;right:30px;background:#fff;border:none;border-radius:50%;font-size:20px;padding:5px 10px;cursor:pointer;}
@@ -101,6 +70,7 @@ header img{height:50px;width:50px;border-radius:6px;margin-right:8px;object-fit:
 
 <section class="posts-grid" id="postsArea"></section>
 
+<!-- Modal for viewing -->
 <div id="modalBg" class="modal-bg">
   <div class="modal">
     <button id="modalClose" class="modal-close">X</button>
@@ -108,31 +78,34 @@ header img{height:50px;width:50px;border-radius:6px;margin-right:8px;object-fit:
   </div>
 </div>
 
-// Zoom open
-modalContent.querySelectorAll("img.image-zoom").forEach(img => {
-  img.onclick = (e) => {
-    e.stopPropagation();
-    zoomImg.src = img.src;
-    zoomModal.style.display = "flex";
-  }
-});
-
-// Zoom close
-document.querySelector(".zoom-close").onclick = () => zoomModal.style.display = "none";
-zoomModal.onclick = e => { if(e.target === zoomModal) zoomModal.style.display = "none"; }
+<!-- Zoom Modal -->
+<div id="zoomModal" class="zoom-modal">
+  <button class="zoom-close">×</button>
+  <img id="zoomImg" src="">
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, doc, deleteDoc, updateDoc, onSnapshot, query, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// Firebase setup same as before
-const firebaseConfig = { apiKey:"AIzaSyDMvkPqFKDjrMaLlBkercBYoLxEs1GEbng", authDomain:"all-madrsa.firebaseapp.com", projectId:"all-madrsa", storageBucket:"all-madrsa.appspot.com", messagingSenderId:"619313835874", appId:"1:619313835874:web:e33f0c8bdef6d1a7f31e9f"};
+// ✅ Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyC9tqZWhUN_cCdps9e81lsOezoqEZL2XJA",
+  authDomain: "vasailive-news.firebaseapp.com",
+  databaseURL: "https://vasailive-news-default-rtdb.firebaseio.com",
+  projectId: "vasailive-news",
+  storageBucket: "vasailive-news.appspot.com",
+  messagingSenderId: "527720941491",
+  appId: "1:527720941491:web:9bd27e8bbc8f48b6b56dc6",
+  measurementId: "G-Z85WP0D6N3"
+};
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const ADMIN_EMAIL="zaradigitalseva@gmail.com";
-const IMGBB_API_KEY="d12c2e4a8650157b2b6b9fe85336ea43";
+const ADMIN_EMAIL = "newsvasailive@gmail.com";
+const IMGBB_API_KEY = "ff902d7c63784748f5e28d5f29eef4cc";
 
 // DOM elements
 const loginBtn=document.getElementById("loginBtn");
@@ -153,7 +126,7 @@ const zoomImg=document.getElementById("zoomImg");
 
 let editingId=null;
 
-// Auth
+// ✅ Auth
 loginBtn.onclick = async()=>{await signInWithPopup(auth,new GoogleAuthProvider());}
 logoutBtn.onclick=()=>signOut(auth);
 
@@ -171,7 +144,7 @@ auth.onAuthStateChanged(user=>{
   }
 });
 
-// IMGBB Upload
+// ✅ IMGBB Upload
 async function uploadToImgBB(file){
   const formData=new FormData();
   formData.append("image",file);
@@ -180,16 +153,24 @@ async function uploadToImgBB(file){
   return data.data.url;
 }
 
-// Add Text/Image
+// ✅ Add Text / Image
 document.getElementById("addTextBtn").onclick=()=>{
-  const t=document.createElement("textarea"); t.placeholder="Write paragraph..."; t.dataset.type="text"; t.className="border p-2 w-full mb-2 rounded"; blocksList.appendChild(t);
+  const t=document.createElement("textarea");
+  t.placeholder="Write paragraph...";
+  t.dataset.type="text";
+  t.className="border p-2 w-full mb-2 rounded";
+  blocksList.appendChild(t);
 }
 document.getElementById("addImageBtn").onclick=()=>{
   if(blocksList.querySelectorAll('input[type="file"]').length>=5){alert("Max 5 images allowed"); return;}
-  const inp=document.createElement("input"); inp.type="file"; inp.dataset.type="image"; inp.className="w-full mb-2"; blocksList.appendChild(inp);
+  const inp=document.createElement("input");
+  inp.type="file";
+  inp.dataset.type="image";
+  inp.className="w-full mb-2";
+  blocksList.appendChild(inp);
 }
 
-// Publish/Update
+// ✅ Publish News
 const publishBtn=document.getElementById("publishBtn");
 publishBtn.onclick=async()=>{
   const title=aTitle.value.trim(), cat=aCat.value.trim();
@@ -212,11 +193,11 @@ publishBtn.onclick=async()=>{
   aTitle.value=aCat.value=""; blocksList.innerHTML="";
 }
 
-// Notice
+// ✅ Notice
 const noticeRef=doc(db,"settings","notice");
 document.getElementById("saveNoticeBtn").onclick=()=>setDoc(noticeRef,{text:document.getElementById("noticeInput").value.trim()});
 
-// Load posts & notice
+// ✅ Load Posts
 onSnapshot(query(collection(db,"vasai_news"),orderBy("time","desc")),snap=>{
   const posts=snap.docs.map(d=>({id:d.id,...d.data()}));
   postsArea.innerHTML="";
@@ -231,30 +212,52 @@ onSnapshot(query(collection(db,"vasai_news"),orderBy("time","desc")),snap=>{
   });
   headlineText.textContent=posts.slice(0,5).map(p=>p.title).join(" — ");
 });
-onSnapshot(noticeRef,snap=>{noticeText.textContent=snap.exists()?snap.data().text:""});
+onSnapshot(noticeRef,snap=>{noticeText.textContent=snap.exists()?snap.data().text:"";});
 
-// Modal
+// ✅ Modal
 modalClose.onclick=()=>modalBg.style.display="none";
 modalBg.onclick=e=>{if(e.target===modalBg) modalBg.style.display="none";}
+
 function showModal(d){
   modalContent.innerHTML=`<h2 class='text-lg font-bold mb-2'>${d.title}</h2>`;
-  d.blocks.forEach(b=>{if(b.type=="text") modalContent.innerHTML+=`<p class='mb-2 text-gray-800'>${b.text}</p>`;
-  else modalContent.innerHTML+=`<img src='${b.url}' class='image-zoom'>`;});
+  d.blocks.forEach(b=>{
+    if(b.type=="text") modalContent.innerHTML+=`<p class='mb-2 text-gray-800'>${b.text}</p>`;
+    else modalContent.innerHTML+=`<img src='${b.url}' class='image-zoom mb-2'>`;
+  });
   const user=auth.currentUser;
   if(user && user.email===ADMIN_EMAIL){
-    const editBtn=document.createElement("button"); editBtn.textContent="Edit"; editBtn.className="bg-gray-200 px-3 py-1 rounded mr-2";
+    const editBtn=document.createElement("button");
+    editBtn.textContent="Edit";
+    editBtn.className="bg-gray-200 px-3 py-1 rounded mr-2";
     editBtn.onclick=()=>{
-      editingId=d.id; aTitle.value=d.title; aCat.value=d.category; blocksList.innerHTML="";
-      d.blocks.forEach(b=>{if(b.type=="text"){const t=document.createElement("textarea"); t.value=b.text; t.dataset.type="text"; t.className="border p-2 w-full mb-2 rounded"; blocksList.appendChild(t);} else{const inp=document.createElement("input"); inp.type="file"; inp.className="w-full mb-2"; blocksList.appendChild(inp);}});
+      editingId=d.id;
+      aTitle.value=d.title;
+      aCat.value=d.category;
+      blocksList.innerHTML="";
+      d.blocks.forEach(b=>{
+        if(b.type=="text"){
+          const t=document.createElement("textarea");
+          t.value=b.text;
+          t.dataset.type="text";
+          t.className="border p-2 w-full mb-2 rounded";
+          blocksList.appendChild(t);
+        }
+      });
       modalBg.style.display="none";
     };
-    const delBtn=document.createElement("button"); delBtn.textContent="Delete"; delBtn.className="bg-red-500 text-white px-3 py-1 rounded";
-    delBtn.onclick=async()=>{if(confirm("Delete this post?")) await deleteDoc(doc(db,"vasai_news",d.id)); modalBg.style.display="none";}
-    modalContent.appendChild(editBtn); modalContent.appendChild(delBtn);
+    const delBtn=document.createElement("button");
+    delBtn.textContent="Delete";
+    delBtn.className="bg-red-500 text-white px-3 py-1 rounded";
+    delBtn.onclick=async()=>{if(confirm("Delete this post?")) await deleteDoc(doc(db,"vasai_news",d.id)); modalBg.style.display="none";};
+    modalContent.appendChild(editBtn);
+    modalContent.appendChild(delBtn);
   }
   modalBg.style.display="flex";
-  modalContent.querySelectorAll("img.image-zoom").forEach(img=>{img.onclick=()=>{zoomImg.src=img.src; zoomModal.style.display="flex";}});
+  modalContent.querySelectorAll("img.image-zoom").forEach(img=>{
+    img.onclick=()=>{zoomImg.src=img.src; zoomModal.style.display="flex";};
+  });
 }
+
 document.querySelector(".zoom-close").onclick=()=>zoomModal.style.display="none";
 zoomModal.onclick=e=>{if(e.target===zoomModal) zoomModal.style.display="none";}
 </script>
