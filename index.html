@@ -10,7 +10,7 @@
     body {background:#0d0d0d;color:#fff;overflow-y:auto;scroll-behavior:smooth;}
     header {display:flex;justify-content:space-between;align-items:center;
       padding:10px 20px;background:#111;border-bottom:1px solid #333;position:sticky;top:0;z-index:1000;}
-    h1 {font-size:1.5rem;}
+    h1 {font-size:1.4rem;}
     button {background:#ff1744;color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;transition:0.3s;}
     button:hover {background:#ff4569;}
     input[type="file"] {background:none;color:#ccc;margin-top:6px;}
@@ -32,6 +32,12 @@
     .preview-box img {width:100%;border-radius:10px;margin-top:10px;}
     .preview-title {font-size:1.2rem;font-weight:600;margin-bottom:6px;}
     .preview-content {font-size:0.95rem;color:#ccc;}
+    .ticker {background:#ff1744;color:#fff;padding:6px 0;overflow:hidden;white-space:nowrap;}
+    .ticker span {display:inline-block;padding-left:100%;animation:ticker 15s linear infinite;}
+    @keyframes ticker {
+      0% {transform:translateX(0);}
+      100% {transform:translateX(-100%);}
+    }
   </style>
 </head>
 <body>
@@ -40,6 +46,9 @@
     <h1>📰 Vasai Live News</h1>
     <button id="loginBtn">Login with Google</button>
   </header>
+
+  <!-- Breaking News Ticker -->
+  <div class="ticker"><span id="breakingNews">Loading breaking news...</span></div>
 
   <div class="container">
     <div id="adminPanel" class="news-form hidden">
@@ -74,7 +83,7 @@
       apiKey: "AIzaSyC9tqZWhUN_cCdps9e81lsOezoqEZL2XJA",
       authDomain: "vasailive-news.firebaseapp.com",
       projectId: "vasailive-news",
-      storageBucket: "vasailive-news.firebasestorage.app",
+      storageBucket: "vasailive-news.appspot.com",
       messagingSenderId: "527720941491",
       appId: "1:527720941491:web:9bd27e8bbc8f48b6b56dc6",
       measurementId: "G-Z85WP0D6N3"
@@ -95,6 +104,7 @@
     const contentField = document.getElementById('content');
     const imageFile = document.getElementById('imageFile');
     const uploadStatus = document.getElementById('uploadStatus');
+    const breakingNews = document.getElementById('breakingNews');
 
     const previewBox = document.getElementById('previewBox');
     const previewTitle = document.getElementById('previewTitle');
@@ -105,7 +115,7 @@
     let editId = null;
     let uploadedImageURL = "";
 
-    // 🔐 Login
+    // 🔐 Login / Logout
     loginBtn.addEventListener('click', () => {
       if (auth.currentUser) auth.signOut();
       else auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
@@ -142,7 +152,8 @@
       const content = contentField.value.trim();
       if (!title || !content) return alert("Please fill all fields!");
       await db.collection('vasai_news').add({
-        title, content, image: uploadedImageURL || "", createdAt: new Date()
+        title, content, image: uploadedImageURL || "",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       clearForm();
     });
@@ -170,7 +181,7 @@
       clearForm();
     });
 
-    // 🧹 Clear
+    // 🧹 Clear Form
     function clearForm() {
       titleField.value = "";
       contentField.value = "";
@@ -203,12 +214,14 @@
       if (confirm("Delete this news?")) await db.collection('vasai_news').doc(id).delete();
     };
 
-    // 🔄 Load News
+    // 🔄 Load News + Breaking News
     function loadNews() {
       db.collection('vasai_news').orderBy('createdAt','desc').onSnapshot(snapshot => {
         newsList.innerHTML = "";
+        let headlines = [];
         snapshot.forEach(doc => {
           const news = doc.data();
+          if (news.title) headlines.push(news.title);
           const card = document.createElement('div');
           card.className = "card";
           card.innerHTML = `
@@ -217,12 +230,13 @@
             <div class="card-content">${news.content}</div>
             ${auth.currentUser && auth.currentUser.email === ADMIN_EMAIL
               ? `<div class="actions">
-                   <button onclick='editNews("${doc.id}", ${JSON.stringify(news)})'>Edit</button>
+                   <button onclick='editNews("${doc.id}", ${JSON.stringify(news).replace(/'/g, "\\'")})'>Edit</button>
                    <button onclick='deleteNews("${doc.id}")'>Delete</button>
                  </div>` : ""}
           `;
           newsList.appendChild(card);
         });
+        breakingNews.textContent = headlines.slice(0,5).join(" 🔹 ");
       });
     }
 
