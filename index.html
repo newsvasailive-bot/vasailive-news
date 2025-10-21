@@ -1,238 +1,492 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="hi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vasai Live News</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getFirestore, collection, addDoc, doc, deleteDoc, updateDoc, onSnapshot, query, orderBy, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyC9tqZWhUN_cCdps9e81lsOezoqEZL2XJA",
-  authDomain: "vasailive-news.firebaseapp.com",
-  databaseURL: "https://vasailive-news-default-rtdb.firebaseio.com",
-  projectId: "vasailive-news",
-  storageBucket: "vasailive-news.appspot.com",
-  messagingSenderId: "527720941491",
-  appId: "1:527720941491:web:9bd27e8bbc8f48b6b56dc6",
-  measurementId: "G-Z85WP0D6N3"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const ADMIN_EMAIL = "newsvasailive@gmail.com";
-const IMGBB_API_KEY = "ff902d7c63784748f5e28d5f29eef4cc";
-
-// Elements
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const editor = document.getElementById("editor");
-const postsArea = document.getElementById("postsArea");
-const blocksList = document.getElementById("blocksList");
-const aTitle = document.getElementById("aTitle");
-const aCat = document.getElementById("aCat");
-const publishBtn = document.getElementById("publishBtn");
-const noticeText = document.getElementById("noticeText");
-const headlineText = document.getElementById("headlineText");
-const modalBg = document.getElementById("modalBg");
-const modalContent = document.getElementById("modalContent");
-const modalClose = document.getElementById("modalClose");
-const zoomModal = document.getElementById("zoomModal");
-const zoomImg = document.getElementById("zoomImg");
-
-let editingId = null;
-
-// AUTH
-loginBtn.onclick = async () => {
-  await signInWithPopup(auth, new GoogleAuthProvider());
-};
-logoutBtn.onclick = () => signOut(auth);
-
-auth.onAuthStateChanged((user) => {
-  if (user && user.email === ADMIN_EMAIL) {
-    editor.classList.remove("hidden");
-    loginBtn.classList.add("hidden");
-    logoutBtn.classList.remove("hidden");
-  } else {
-    editor.classList.add("hidden");
-    loginBtn.classList.remove("hidden");
-    logoutBtn.classList.add("hidden");
-  }
-});
-
-// Upload to imgbb
-async function uploadToImgBB(file) {
-  const formData = new FormData();
-  formData.append("image", file);
-  const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
-    method: "POST",
-    body: formData,
-  });
-  const data = await res.json();
-  return data.data.url;
-}
-
-// Add blocks
-document.getElementById("addTextBtn").onclick = () => {
-  const t = document.createElement("textarea");
-  t.placeholder = "Write paragraph...";
-  t.dataset.type = "text";
-  t.className = "border p-2 w-full mb-2 rounded";
-  blocksList.appendChild(t);
-};
-document.getElementById("addImageBtn").onclick = () => {
-  const inp = document.createElement("input");
-  inp.type = "file";
-  inp.dataset.type = "image";
-  inp.className = "w-full mb-2";
-  blocksList.appendChild(inp);
-};
-
-// Publish / Update
-publishBtn.onclick = async () => {
-  const title = aTitle.value.trim();
-  const cat = aCat.value.trim();
-  if (!title) return alert("Enter title!");
-  const blocks = [];
-  for (const el of blocksList.children) {
-    if (el.dataset.type === "text" && el.value.trim()) {
-      blocks.push({ type: "text", text: el.value.trim() });
-    } else if (el.dataset.type === "image" && el.files.length > 0) {
-      const url = await uploadToImgBB(el.files[0]);
-      blocks.push({ type: "image", url });
-    }
-  }
-  if (blocks.length === 0) return alert("Add content!");
-  const data = { title, category: cat, blocks, time: new Date().toLocaleString() };
-  if (editingId) {
-    await updateDoc(doc(db, "vasai_news", editingId), data);
-    editingId = null;
-  } else {
-    await addDoc(collection(db, "vasai_news"), data);
-  }
-  aTitle.value = aCat.value = "";
-  blocksList.innerHTML = "";
-};
-
-// Load posts
-onSnapshot(query(collection(db, "vasai_news"), orderBy("time", "desc")), (snap) => {
-  postsArea.innerHTML = "";
-  const posts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  headlineText.textContent = posts.slice(0, 5).map((p) => p.title).join(" — ");
-  posts.forEach((d) => {
-    const img = d.blocks.find((b) => b.type === "image")?.url || "https://via.placeholder.com/300x150?text=No+Image";
-    const txt = d.blocks.find((b) => b.type === "text")?.text.substring(0, 80) + "..." || "";
-    const card = document.createElement("div");
-    card.className = "card bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition";
-    card.innerHTML = `<img src='${img}' class='w-full h-40 object-cover cursor-pointer'>
-      <div class='p-3'><h3 class='font-bold text-lg mb-1'>${d.title}</h3><p class='text-sm text-gray-600'>${txt}</p></div>`;
-    card.onclick = () => showModal(d);
-    postsArea.appendChild(card);
-  });
-});
-
-// Modal show
-function showModal(d) {
-  modalContent.innerHTML = `<h2 class='text-xl font-bold mb-2'>${d.title}</h2>`;
-  d.blocks.forEach((b) => {
-    if (b.type === "text")
-      modalContent.innerHTML += `<p class='mb-2 text-gray-700 leading-relaxed'>${b.text}</p>`;
-    else modalContent.innerHTML += `<img src='${b.url}' class='rounded-md mb-2 cursor-zoom-in'>`;
-  });
-  const user = auth.currentUser;
-  if (user && user.email === ADMIN_EMAIL) {
-    const editBtn = document.createElement("button");
-    editBtn.textContent = "Edit";
-    editBtn.className = "bg-yellow-500 text-white px-3 py-1 rounded mr-2";
-    editBtn.onclick = () => {
-      editingId = d.id;
-      aTitle.value = d.title;
-      aCat.value = d.category;
-      blocksList.innerHTML = "";
-      d.blocks.forEach((b) => {
-        if (b.type === "text") {
-          const t = document.createElement("textarea");
-          t.value = b.text;
-          t.dataset.type = "text";
-          t.className = "border p-2 w-full mb-2 rounded";
-          blocksList.appendChild(t);
-        }
-      });
-      modalBg.style.display = "none";
-    };
-    const delBtn = document.createElement("button");
-    delBtn.textContent = "Delete";
-    delBtn.className = "bg-red-600 text-white px-3 py-1 rounded";
-    delBtn.onclick = async () => {
-      if (confirm("Delete this news?")) await deleteDoc(doc(db, "vasai_news", d.id));
-      modalBg.style.display = "none";
-    };
-    modalContent.appendChild(editBtn);
-    modalContent.appendChild(delBtn);
-  }
-  modalBg.style.display = "flex";
-}
-
-modalClose.onclick = () => (modalBg.style.display = "none");
-modalBg.onclick = (e) => {
-  if (e.target === modalBg) modalBg.style.display = "none";
-};
-</script>
-
-<style>
-.card img:hover { transform: scale(1.03); transition: 0.3s; }
-.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); justify-content:center; align-items:center; z-index:9999; }
-.modal { background:#fff; border-radius:10px; max-width:650px; width:90%; max-height:85%; overflow-y:auto; padding:16px; position:relative; }
-.modal-close { position:absolute; top:10px; right:15px; cursor:pointer; }
-.notice-ticker, .headline-ticker { position:sticky; overflow:hidden; white-space:nowrap; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vasai Live News — Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* small custom tweaks */
+    .modal-backdrop { background: rgba(0,0,0,0.6); }
+    .card-hover:hover { transform: translateY(-6px); box-shadow: 0 10px 30px rgba(2,6,23,0.12); }
+    /* make textarea autosize feel better */
+    textarea { resize: vertical; min-height: 80px; }
+  </style>
 </head>
-<body class="bg-gray-100">
+<body class="bg-slate-50 text-slate-900 min-h-screen antialiased">
 
-<header class="flex justify-between items-center bg-blue-900 text-white p-3 sticky top-0 z-50 shadow">
-  <div class="flex items-center space-x-2">
-    <img src="https://i.postimg.cc/vTb8F94w/vasalive-png.jpg" class="h-10 w-10 rounded-md" alt="logo">
-    <h1 class="font-bold text-lg">Vasai Live News</h1>
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-sky-700 to-indigo-700 text-white sticky top-0 z-40 shadow">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="https://i.postimg.cc/vTb8F94w/vasalive-png.jpg" alt="Vasai Live" class="h-12 w-12 rounded-md object-cover">
+        <div>
+          <div class="font-extrabold text-lg">Vasai Live News</div>
+          <div class="text-sm opacity-80">Local • ताज़ा खबरें</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div id="adminBadge" class="hidden px-3 py-1 bg-emerald-500 rounded text-white text-sm font-medium">Admin</div>
+        <button id="loginBtn" class="bg-emerald-400 hover:bg-emerald-500 text-slate-900 px-3 py-1 rounded-md font-semibold">Login</button>
+        <button id="logoutBtn" class="hidden bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md font-semibold">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Headline / Notice -->
+  <div class="max-w-6xl mx-auto px-4 mt-4">
+    <div class="flex flex-col md:flex-row gap-3">
+      <div class="flex-1 bg-white rounded-lg p-3 shadow-sm">
+        <div id="noticeText" class="text-sm text-rose-600 font-medium">Latest updates</div>
+        <div id="headlineText" class="mt-1 text-slate-700 text-sm">—</div>
+      </div>
+      <div class="w-full md:w-64 bg-white rounded-lg p-3 shadow-sm text-sm">
+        <div class="font-semibold">Status</div>
+        <div id="authStatus" class="mt-1 text-slate-600">Not logged in</div>
+      </div>
+    </div>
   </div>
-  <div>
-    <button id="loginBtn" class="bg-green-500 px-3 py-1 rounded">Login</button>
-    <button id="logoutBtn" class="hidden bg-red-600 px-3 py-1 rounded">Logout</button>
+
+  <!-- Editor + Grid -->
+  <main class="max-w-6xl mx-auto px-4 mt-5 mb-12">
+    <!-- Admin Editor -->
+    <section id="editorSection" class="hidden bg-white rounded-lg shadow p-4 mb-5">
+      <div class="flex items-center justify-between">
+        <h2 class="font-bold text-lg">📰 Add / Edit News</h2>
+        <div class="text-sm text-slate-500">Admin only</div>
+      </div>
+
+      <div class="mt-3 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2">
+          <input id="aTitle" placeholder="Title" class="w-full border rounded p-2 mb-2" />
+          <input id="aCat" placeholder="Category (optional)" class="w-full border rounded p-2 mb-3" />
+          <div id="blocksList" class="space-y-2"></div>
+
+          <div class="flex flex-wrap gap-2 mt-3">
+            <button id="addTextBtn" class="px-3 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add Text</button>
+            <button id="addImageBtn" class="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Add Image</button>
+            <button id="publishBtn" class="px-3 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">Publish</button>
+            <button id="clearBtn" class="px-3 py-2 bg-gray-200 text-slate-800 rounded hover:bg-gray-300">Clear</button>
+          </div>
+        </div>
+
+        <aside class="bg-slate-50 border rounded p-3">
+          <div class="text-sm font-medium mb-2">Preview</div>
+          <div id="previewArea" class="space-y-2 text-sm text-slate-700"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- Posts grid -->
+    <section id="postsArea" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+  </main>
+
+  <!-- Modal (view news) -->
+  <div id="modalBackdrop" class="fixed inset-0 hidden modal-backdrop z-50 flex items-start md:items-center justify-center p-4">
+    <div id="modalCard" class="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-auto shadow-lg p-5 relative">
+      <button id="modalClose" class="absolute top-3 right-3 bg-slate-100 px-2 py-1 rounded">Close</button>
+      <div id="modalContent" class="prose max-w-none"></div>
+    </div>
   </div>
-</header>
 
-<div class="notice-ticker bg-red-600 text-white text-sm py-1 text-center">
-  <span id="noticeText">Breaking News Updates</span>
-</div>
-<div class="headline-ticker bg-blue-800 text-white text-sm py-1 text-center">
-  <span id="headlineText"></span>
-</div>
-
-<section id="editor" class="hidden p-3 bg-white m-3 rounded shadow">
-  <h2 class="font-bold text-lg mb-2">📰 Add / Edit News</h2>
-  <input id="aTitle" placeholder="Title" class="border p-2 w-full mb-2 rounded">
-  <input id="aCat" placeholder="Category" class="border p-2 w-full mb-2 rounded">
-  <div id="blocksList"></div>
-  <button id="addTextBtn" class="bg-blue-500 text-white px-3 py-1 rounded mr-2">Add Text</button>
-  <button id="addImageBtn" class="bg-purple-500 text-white px-3 py-1 rounded mr-2">Add Image</button>
-  <button id="publishBtn" class="bg-green-600 text-white px-3 py-1 rounded">Publish</button>
-</section>
-
-<section id="postsArea" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-3"></section>
-
-<div id="modalBg" class="modal-bg">
-  <div class="modal">
-    <button id="modalClose" class="modal-close bg-gray-200 px-2 rounded">X</button>
-    <div id="modalContent"></div>
+  <!-- Zoom modal (for images) -->
+  <div id="zoomBackdrop" class="fixed inset-0 hidden z-60 flex items-center justify-center bg-black/80 p-4">
+    <img id="zoomImg" src="" class="max-h-[90vh] max-w-[90vw] rounded" alt="Zoom">
+    <button id="zoomClose" class="absolute top-6 right-6 bg-white/90 px-3 py-1 rounded">Close</button>
   </div>
-</div>
 
-<div id="zoomModal" class="modal-bg">
-  <img id="zoomImg" class="max-w-full max-h-full rounded-lg shadow-lg">
-</div>
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 hidden bg-slate-900 text-white px-4 py-2 rounded shadow">Saved</div>
 
+  <!-- Firebase + App logic -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // --------- CONFIG ----------
+    const firebaseConfig = {
+      apiKey: "AIzaSyC9tqZWhUN_cCdps9e81lsOezoqEZL2XJA",
+      authDomain: "vasailive-news.firebaseapp.com",
+      databaseURL: "https://vasailive-news-default-rtdb.firebaseio.com",
+      projectId: "vasailive-news",
+      storageBucket: "vasailive-news.appspot.com",
+      messagingSenderId: "527720941491",
+      appId: "1:527720941491:web:9bd27e8bbc8f48b6b56dc6",
+      measurementId: "G-Z85WP0D6N3"
+    };
+
+    // ImgBB (change key if needed)
+    const IMGBB_API_KEY = "ff902d7c63784748f5e28d5f29eef4cc";
+
+    // Admin email
+    const ADMIN_EMAIL = "newsvasailive@gmail.com";
+
+    // --------- INIT ----------
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    // --------- DOM ----------
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const adminBadge = document.getElementById('adminBadge');
+    const authStatus = document.getElementById('authStatus');
+    const editorSection = document.getElementById('editorSection');
+    const addTextBtn = document.getElementById('addTextBtn');
+    const addImageBtn = document.getElementById('addImageBtn');
+    const publishBtn = document.getElementById('publishBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const blocksList = document.getElementById('blocksList');
+    const previewArea = document.getElementById('previewArea');
+    const aTitle = document.getElementById('aTitle');
+    const aCat = document.getElementById('aCat');
+    const postsArea = document.getElementById('postsArea');
+    const noticeText = document.getElementById('noticeText');
+    const headlineText = document.getElementById('headlineText');
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const modalContent = document.getElementById('modalContent');
+    const modalClose = document.getElementById('modalClose');
+    const modalCard = document.getElementById('modalCard');
+    const toast = document.getElementById('toast');
+    const zoomBackdrop = document.getElementById('zoomBackdrop');
+    const zoomImg = document.getElementById('zoomImg');
+    const zoomClose = document.getElementById('zoomClose');
+
+    let editingId = null;
+
+    // --------- Helpers ----------
+    function showToast(msg = "Done") {
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 2000);
+    }
+    function formatTime(ts) { return ts ? new Date(ts).toLocaleString() : ''; }
+    function lockScroll() { document.documentElement.style.overflow = 'hidden'; document.body.style.overflow = 'hidden'; }
+    function unlockScroll() { document.documentElement.style.overflow = ''; document.body.style.overflow = ''; }
+
+    // Escape simple HTML for text-only fields
+    function escapeHtml(s) { return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+
+    // ---------- AUTH ----------
+    loginBtn.addEventListener('click', async () => {
+      try { await signInWithPopup(auth, provider); }
+      catch (e) { console.error("Login error:", e); alert("Login failed: " + e.message); }
+    });
+    logoutBtn.addEventListener('click', async () => {
+      try { await signOut(auth); }
+      catch (e) { console.error("Logout:", e); }
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        authStatus.textContent = user.email + (user.email === ADMIN_EMAIL ? " (admin)" : "");
+        loginBtn.classList.add('hidden');
+        logoutBtn.classList.remove('hidden');
+        if (user.email === ADMIN_EMAIL) {
+          adminBadge.classList.remove('hidden');
+          editorSection.classList.remove('hidden');
+        } else {
+          adminBadge.classList.add('hidden');
+          editorSection.classList.add('hidden');
+        }
+      } else {
+        authStatus.textContent = 'Not logged in';
+        loginBtn.classList.remove('hidden');
+        logoutBtn.classList.add('hidden');
+        adminBadge.classList.add('hidden');
+        editorSection.classList.add('hidden');
+      }
+    });
+
+    // ---------- Blocks UI (Add / Preview) ----------
+    function renderPreview() {
+      previewArea.innerHTML = '';
+      const title = aTitle.value.trim();
+      const cat = aCat.value.trim();
+      if (title) previewArea.innerHTML += `<div class="font-semibold">${escapeHtml(title)}</div>`;
+      if (cat) previewArea.innerHTML += `<div class="text-xs text-slate-500">${escapeHtml(cat)}</div>`;
+      for (const b of blocksList.children) {
+        if (b.dataset.type === 'text') {
+          const t = b.querySelector('textarea')?.value || '';
+          previewArea.innerHTML += `<p class="text-sm text-slate-700">${escapeHtml(t).slice(0,200)}</p>`;
+        } else if (b.dataset.type === 'image') {
+          const imgEl = b.querySelector('img');
+          const url = imgEl?.src || '';
+          previewArea.innerHTML += `<div><img src="${url}" class="w-full rounded" /></div>`;
+        }
+      }
+    }
+
+    addTextBtn.addEventListener('click', () => {
+      const wrapper = document.createElement('div');
+      wrapper.dataset.type = 'text';
+      wrapper.className = 'block';
+      wrapper.innerHTML = `
+        <textarea placeholder="Write paragraph..." class="w-full border rounded p-2 mb-1"></textarea>
+        <div class="flex gap-2">
+          <button class="removeBtn px-2 py-1 text-sm bg-gray-200 rounded">Remove</button>
+        </div>`;
+      blocksList.appendChild(wrapper);
+
+      // events
+      wrapper.querySelector('textarea').addEventListener('input', renderPreview);
+      wrapper.querySelector('.removeBtn').addEventListener('click', () => { wrapper.remove(); renderPreview(); });
+      renderPreview();
+    });
+
+    addImageBtn.addEventListener('click', () => {
+      const wrapper = document.createElement('div');
+      wrapper.dataset.type = 'image';
+      wrapper.className = 'block';
+      wrapper.innerHTML = `
+        <div class="mb-2">
+          <img src="https://via.placeholder.com/600x300?text=Preview" class="w-full rounded object-cover mb-2" style="max-height:220px;"/>
+          <input type="file" accept="image/*" class="fileInput"/>
+        </div>
+        <div class="flex gap-2">
+          <button class="removeBtn px-2 py-1 text-sm bg-gray-200 rounded">Remove</button>
+        </div>`;
+      blocksList.appendChild(wrapper);
+
+      const fileInput = wrapper.querySelector('.fileInput');
+      const previewImg = wrapper.querySelector('img');
+
+      fileInput.addEventListener('change', (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const url = URL.createObjectURL(f);
+        previewImg.src = url;
+        renderPreview();
+      });
+
+      wrapper.querySelector('.removeBtn').addEventListener('click', () => { wrapper.remove(); renderPreview(); });
+      renderPreview();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      aTitle.value = aCat.value = '';
+      blocksList.innerHTML = '';
+      editingId = null;
+      renderPreview();
+    });
+
+    // ---------- ImgBB upload ----------
+    async function uploadImageFile(file) {
+      if (!file) return null;
+      const fd = new FormData();
+      fd.append('image', file);
+      try {
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: fd });
+        const json = await res.json();
+        if (json && json.data && json.data.url) return json.data.url;
+        throw new Error('ImgBB upload failed');
+      } catch (err) {
+        console.error('ImgBB error', err);
+        alert('Image upload failed: ' + err.message);
+        return null;
+      }
+    }
+
+    // ---------- Publish / Update ----------
+    publishBtn.addEventListener('click', async () => {
+      const user = auth.currentUser;
+      if (!user || user.email !== ADMIN_EMAIL) { alert('Only admin can publish'); return; }
+      const title = aTitle.value.trim();
+      if (!title) { alert('Enter title'); return; }
+
+      // collect blocks (handle image files & existing previews)
+      const blocks = [];
+      try {
+        for (const b of blocksList.children) {
+          if (b.dataset.type === 'text') {
+            const txt = b.querySelector('textarea')?.value.trim() || '';
+            if (txt) blocks.push({ type: 'text', text: txt });
+          } else if (b.dataset.type === 'image') {
+            const fileInput = b.querySelector('input[type="file"]');
+            const imgTag = b.querySelector('img');
+            // if user selected a file, upload it; else if imgTag src is a remote url (starts with http) keep it
+            if (fileInput && fileInput.files && fileInput.files.length > 0) {
+              const uploaded = await uploadImageFile(fileInput.files[0]);
+              if (uploaded) blocks.push({ type: 'image', url: uploaded });
+            } else if (imgTag && imgTag.src && imgTag.src.startsWith('http')) {
+              // existing image preview already has URL
+              blocks.push({ type: 'image', url: imgTag.src });
+            }
+          }
+        }
+
+        if (blocks.length === 0) { alert('Add some content (text / image)'); return; }
+
+        const payload = {
+          title,
+          category: aCat.value.trim() || '',
+          blocks,
+          time: Date.now(),
+          author: user.email
+        };
+
+        if (editingId) {
+          await updateDoc(doc(db, 'vasai_news', editingId), payload);
+          showToast('Updated');
+        } else {
+          await addDoc(collection(db, 'vasai_news'), payload);
+          showToast('Published');
+        }
+
+        // reset
+        aTitle.value = aCat.value = '';
+        blocksList.innerHTML = '';
+        editingId = null;
+        renderPreview();
+      } catch (err) {
+        console.error('Publish error', err);
+        alert('Publish failed: ' + err.message);
+      }
+    });
+
+    // ---------- Realtime posts load ----------
+    const q = query(collection(db, 'vasai_news'), orderBy('time', 'desc'));
+    onSnapshot(q, (snap) => {
+      const posts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // headlines / notice
+      headlineText.textContent = posts.slice(0,5).map(p => p.title).join(' — ') || 'No news yet';
+      // render grid
+      postsArea.innerHTML = '';
+      for (const p of posts) {
+        const card = document.createElement('article');
+        card.className = 'bg-white rounded-lg overflow-hidden shadow-sm p-0 card-hover';
+
+        // thumbnail from first image block
+        const imgUrl = (p.blocks.find(b => b.type === 'image') || {}).url || 'https://via.placeholder.com/800x450?text=No+Image';
+        const excerpt = (p.blocks.find(b => b.type === 'text') || {}).text || '';
+
+        card.innerHTML = `
+          <div class="h-44 w-full overflow-hidden">
+            <img src="${imgUrl}" alt="${escapeHtml(p.title)}" class="w-full h-full object-cover cursor-pointer">
+          </div>
+          <div class="p-3">
+            <h3 class="font-semibold text-lg leading-tight mb-1">${escapeHtml(p.title)}</h3>
+            <div class="text-xs text-slate-500 mb-2">${formatTime(p.time)} ${p.category ? ' • ' + escapeHtml(p.category) : ''}</div>
+            <p class="text-sm text-slate-600">${escapeHtml(excerpt).slice(0,140)}${excerpt ? '...' : ''}</p>
+          </div>
+        `;
+
+        // click to open modal view
+        card.querySelector('img')?.addEventListener('click', () => openModal(p));
+        card.querySelector('h3')?.addEventListener('click', () => openModal(p));
+        postsArea.appendChild(card);
+      }
+    }, (err) => console.error('Snapshot error', err));
+
+    // ---------- Modal view ----------
+    function openModal(p) {
+      modalContent.innerHTML = `<h2 class="text-2xl font-bold mb-2">${escapeHtml(p.title)}</h2>
+        <div class="text-sm text-slate-500 mb-3">${formatTime(p.time)} ${p.category ? ' • ' + escapeHtml(p.category) : ''}</div>`;
+
+      for (const b of p.blocks) {
+        if (b.type === 'text') modalContent.innerHTML += `<p class="mb-3 text-slate-700">${escapeHtml(b.text)}</p>`;
+        else if (b.type === 'image') modalContent.innerHTML += `<img src="${b.url}" class="mb-3 rounded cursor-zoom-in max-h-[60vh]" style="width:100%;object-fit:cover;">`;
+      }
+
+      // admin actions
+      const user = auth.currentUser;
+      if (user && user.email === ADMIN_EMAIL) {
+        const actions = document.createElement('div');
+        actions.className = 'mt-3 flex gap-2';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'px-3 py-1 rounded bg-amber-400 text-slate-900';
+        editBtn.textContent = 'Edit';
+        editBtn.onclick = () => {
+          // populate editor
+          editingId = p.id;
+          aTitle.value = p.title || '';
+          aCat.value = p.category || '';
+          blocksList.innerHTML = '';
+
+          for (const b of p.blocks) {
+            if (b.type === 'text') {
+              const wrapper = document.createElement('div');
+              wrapper.dataset.type = 'text';
+              wrapper.innerHTML = `<textarea class="w-full border rounded p-2 mb-1">${escapeHtml(b.text)}</textarea>
+                <div class="flex gap-2"><button class="removeBtn px-2 py-1 text-sm bg-gray-200 rounded">Remove</button></div>`;
+              blocksList.appendChild(wrapper);
+              wrapper.querySelector('.removeBtn').addEventListener('click', () => { wrapper.remove(); renderPreview(); });
+              wrapper.querySelector('textarea').addEventListener('input', renderPreview);
+            } else if (b.type === 'image') {
+              const wrapper = document.createElement('div');
+              wrapper.dataset.type = 'image';
+              wrapper.innerHTML = `
+                <div class="mb-2">
+                  <img src="${b.url}" class="w-full rounded object-cover mb-2" style="max-height:220px;"/>
+                  <input type="file" class="fileInput"/>
+                </div>
+                <div class="flex gap-2"><button class="removeBtn px-2 py-1 text-sm bg-gray-200 rounded">Remove</button></div>`;
+              blocksList.appendChild(wrapper);
+
+              const fileInput = wrapper.querySelector('.fileInput');
+              const previewImg = wrapper.querySelector('img');
+              fileInput.addEventListener('change', (e) => {
+                const f = e.target.files[0];
+                if (!f) return;
+                previewImg.src = URL.createObjectURL(f);
+                renderPreview();
+              });
+              wrapper.querySelector('.removeBtn').addEventListener('click', () => { wrapper.remove(); renderPreview(); });
+            }
+          }
+
+          renderPreview();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          modalBackdrop.classList.add('hidden');
+        };
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'px-3 py-1 rounded bg-red-600 text-white';
+        delBtn.textContent = 'Delete';
+        delBtn.onclick = async () => {
+          if (!confirm('Delete this news?')) return;
+          try { await deleteDoc(doc(db, 'vasai_news', p.id)); showToast('Deleted'); modalBackdrop.classList.add('hidden'); }
+          catch (err) { console.error('Delete err', err); alert('Delete failed: ' + err.message); }
+        };
+
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+        modalContent.appendChild(actions);
+      }
+
+      // attach zoom handlers
+      modalContent.querySelectorAll('img').forEach(imgEl => {
+        imgEl.addEventListener('click', () => {
+          zoomImg.src = imgEl.src;
+          zoomBackdrop.classList.remove('hidden');
+          lockScroll();
+        });
+      });
+
+      // show modal and lock scroll
+      modalBackdrop.classList.remove('hidden');
+      lockScroll();
+    }
+
+    modalClose.addEventListener('click', () => { modalBackdrop.classList.add('hidden'); unlockScroll(); });
+    modalBackdrop.addEventListener('click', (e) => { if (e.target === modalBackdrop) { modalBackdrop.classList.add('hidden'); unlockScroll(); } });
+
+    // zoom close
+    zoomClose.addEventListener('click', () => { zoomBackdrop.classList.add('hidden'); unlockScroll(); });
+    zoomBackdrop.addEventListener('click', (e) => { if (e.target === zoomBackdrop) { zoomBackdrop.classList.add('hidden'); unlockScroll(); } });
+
+    // re-render preview on input events
+    aTitle.addEventListener('input', renderPreview);
+    aCat.addEventListener('input', renderPreview);
+    // initial preview
+    renderPreview();
+
+    // small safety: warn if not authorized domain or google sign-in fails — handled in console
+    console.log('App initialized. Make sure Google Sign-in is enabled and this domain is authorized in Firebase Console.');
+  </script>
 </body>
 </html>
