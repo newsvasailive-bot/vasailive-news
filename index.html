@@ -1,247 +1,225 @@
 <!DOCTYPE html>
 <html lang="hi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Vasai Live News</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    * {margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
-    body {background:#0d0d0d;color:#fff;overflow-y:auto;scroll-behavior:smooth;}
-    header {display:flex;justify-content:space-between;align-items:center;
-      padding:10px 20px;background:#111;border-bottom:1px solid #333;position:sticky;top:0;z-index:1000;}
-    h1 {font-size:1.4rem;}
-    button {background:#ff1744;color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;transition:0.3s;}
-    button:hover {background:#ff4569;}
-    input[type="file"] {background:none;color:#ccc;margin-top:6px;}
-    .container {padding:20px;max-width:900px;margin:auto;}
-    .news-form {background:#1a1a1a;padding:20px;border-radius:10px;margin-bottom:20px;}
-    .news-form input, .news-form textarea {
-      width:100%;padding:10px;margin:8px 0;border:none;border-radius:6px;background:#2a2a2a;color:#fff;
-    }
-    textarea {height:120px;resize:vertical;overflow-y:auto;}
-    .news-list {display:grid;gap:15px;}
-    .card {background:#1a1a1a;padding:15px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.5);}
-    .card img {width:100%;border-radius:10px;margin-bottom:10px;}
-    .card-title {font-weight:600;font-size:1.1rem;margin-bottom:5px;}
-    .card-content {font-size:0.95rem;line-height:1.5;color:#ddd;}
-    .card .actions {display:flex;gap:10px;margin-top:10px;}
-    .hidden {display:none;}
-    .uploading {font-size:0.9rem;color:#ff9;}
-    .preview-box {background:#101010;border:1px solid #333;border-radius:10px;padding:15px;margin-top:20px;}
-    .preview-box img {width:100%;border-radius:10px;margin-top:10px;}
-    .preview-title {font-size:1.2rem;font-weight:600;margin-bottom:6px;}
-    .preview-content {font-size:0.95rem;color:#ccc;}
-    .ticker {background:#ff1744;color:#fff;padding:6px 0;overflow:hidden;white-space:nowrap;}
-    .ticker span {display:inline-block;padding-left:100%;animation:ticker 15s linear infinite;}
-    @keyframes ticker {
-      0% {transform:translateX(0);}
-      100% {transform:translateX(-100%);}
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vasai Live News</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
+  body{background:#0d0d0d;color:#fff;overflow-y:auto;scroll-behavior:smooth;}
+  header{display:flex;justify-content:space-between;align-items:center;padding:10px 20px;background:#111;border-bottom:1px solid #333;position:sticky;top:0;z-index:1000;}
+  h1{font-size:1.4rem;}
+  button{background:#ff1744;color:#fff;border:none;padding:8px 14px;border-radius:6px;cursor:pointer;transition:0.3s;}
+  button:hover{background:#ff4569;}
+  .container{padding:20px;max-width:900px;margin:auto;}
+  .news-form{background:#1a1a1a;padding:20px;border-radius:10px;margin-bottom:20px;}
+  .news-form input, .news-form textarea{width:100%;padding:10px;margin:8px 0;border:none;border-radius:6px;background:#2a2a2a;color:#fff;}
+  textarea{height:120px;resize:vertical;overflow-y:auto;}
+  .news-list{display:grid;gap:15px;}
+  .card{background:#1a1a1a;padding:15px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.5);}
+  .card img{width:100%;border-radius:10px;margin-bottom:10px;}
+  .card-title{font-weight:600;font-size:1.1rem;margin-bottom:5px;}
+  .card-content{font-size:0.95rem;line-height:1.5;color:#ddd;}
+  .card .actions{display:flex;gap:10px;margin-top:10px;}
+  .hidden{display:none;}
+  .uploading{font-size:0.9rem;color:#ff9;}
+  .preview-box{background:#101010;border:1px solid #333;border-radius:10px;padding:15px;margin-top:20px;max-height:300px;overflow-y:auto;}
+  .preview-box img{width:100%;border-radius:10px;margin-top:10px;}
+  .preview-title{font-size:1.2rem;font-weight:600;margin-bottom:6px;}
+  .preview-content{font-size:0.95rem;color:#ccc;}
+  .ticker{background:#ff1744;color:#fff;padding:6px 0;overflow:hidden;white-space:nowrap;}
+  .ticker span{display:inline-block;padding-left:100%;animation:ticker 15s linear infinite;}
+  @keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-100%);}}
+</style>
 </head>
 <body>
 
-  <header>
-    <h1>📰 Vasai Live News</h1>
-    <button id="loginBtn">Login with Google</button>
-  </header>
+<header>
+  <h1>📰 Vasai Live News</h1>
+  <button id="loginBtn">Login with Google</button>
+</header>
 
-  <!-- Breaking News Ticker -->
-  <div class="ticker"><span id="breakingNews">Loading breaking news...</span></div>
+<div class="ticker"><span id="breakingNews">Loading breaking news...</span></div>
 
-  <div class="container">
-    <div id="adminPanel" class="news-form hidden">
-      <h2>🗞️ नई न्यूज़ पोस्ट करें / Edit</h2>
-      <input type="text" id="title" placeholder="News Title" />
-      <textarea id="content" placeholder="News Content..."></textarea>
-      <input type="file" id="imageFile" accept="image/*" />
-      <p id="uploadStatus" class="uploading hidden">⏳ Uploading image...</p>
-      <button id="publishBtn">Publish News</button>
-      <button id="updateBtn" class="hidden">Update News</button>
+<div class="container">
+  <div id="adminPanel" class="news-form hidden">
+    <h2>🗞️ नई न्यूज़ पोस्ट करें / Edit</h2>
+    <input type="text" id="title" placeholder="News Title">
+    <textarea id="content" placeholder="News Content..."></textarea>
+    <input type="file" id="imageFile" accept="image/*">
+    <p id="uploadStatus" class="uploading hidden">⏳ Uploading image...</p>
+    <button id="publishBtn">Publish News</button>
+    <button id="updateBtn" class="hidden">Update News</button>
 
-      <!-- ✅ Live Preview -->
-      <div id="previewBox" class="preview-box hidden">
-        <div class="preview-title" id="previewTitle"></div>
-        <div class="preview-content" id="previewContent"></div>
-        <img id="previewImage" class="hidden" />
-      </div>
+    <div id="previewBox" class="preview-box hidden">
+      <div class="preview-title" id="previewTitle"></div>
+      <div class="preview-content" id="previewContent"></div>
+      <img id="previewImage" class="hidden">
     </div>
-
-    <h2 style="margin-bottom:10px;">📰 Latest News</h2>
-    <div class="news-list" id="newsList"></div>
   </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+  <h2 style="margin-bottom:10px;">📰 Latest News</h2>
+  <div class="news-list" id="newsList"></div>
+</div>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyC9tqZWhUN_cCdps9e81lsOezoqEZL2XJA",
-      authDomain: "vasailive-news.firebaseapp.com",
-      projectId: "vasailive-news",
-      storageBucket: "vasailive-news.appspot.com",
-      messagingSenderId: "527720941491",
-      appId: "1:527720941491:web:9bd27e8bbc8f48b6b56dc6",
-      measurementId: "G-Z85WP0D6N3"
-    };
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-    const storage = firebase.storage();
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyC9tqZWhUN_cCdps9e81lsOezoqEZL2XJA",
+    authDomain: "vasailive-news.firebaseapp.com",
+    projectId: "vasailive-news",
+    storageBucket: "vasailive-news.appspot.com",
+    messagingSenderId: "527720941491",
+    appId: "1:527720941491:web:9bd27e8bbc8f48b6b56dc6",
+    measurementId: "G-Z85WP0D6N3"
+  };
 
-    const loginBtn = document.getElementById('loginBtn');
-    const publishBtn = document.getElementById('publishBtn');
-    const updateBtn = document.getElementById('updateBtn');
-    const adminPanel = document.getElementById('adminPanel');
-    const newsList = document.getElementById('newsList');
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  const storage = firebase.storage();
 
-    const titleField = document.getElementById('title');
-    const contentField = document.getElementById('content');
-    const imageFile = document.getElementById('imageFile');
-    const uploadStatus = document.getElementById('uploadStatus');
-    const breakingNews = document.getElementById('breakingNews');
+  const loginBtn = document.getElementById('loginBtn');
+  const publishBtn = document.getElementById('publishBtn');
+  const updateBtn = document.getElementById('updateBtn');
+  const adminPanel = document.getElementById('adminPanel');
+  const newsList = document.getElementById('newsList');
+  const titleField = document.getElementById('title');
+  const contentField = document.getElementById('content');
+  const imageFile = document.getElementById('imageFile');
+  const uploadStatus = document.getElementById('uploadStatus');
+  const breakingNews = document.getElementById('breakingNews');
+  const previewBox = document.getElementById('previewBox');
+  const previewTitle = document.getElementById('previewTitle');
+  const previewContent = document.getElementById('previewContent');
+  const previewImage = document.getElementById('previewImage');
 
-    const previewBox = document.getElementById('previewBox');
-    const previewTitle = document.getElementById('previewTitle');
-    const previewContent = document.getElementById('previewContent');
-    const previewImage = document.getElementById('previewImage');
+  const ADMIN_EMAIL = "newsvasailive@gmail.com";
+  let editId = null;
+  let uploadedImageURL = "";
 
-    const ADMIN_EMAIL = "newsvasailive@gmail.com";
-    let editId = null;
-    let uploadedImageURL = "";
+  // 🔐 Login / Logout
+  loginBtn.addEventListener('click', () => {
+    if (auth.currentUser) auth.signOut();
+    else auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  });
 
-    // 🔐 Login / Logout
-    loginBtn.addEventListener('click', () => {
-      if (auth.currentUser) auth.signOut();
-      else auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-    });
-
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        loginBtn.textContent = "Logout";
-        if (user.email === ADMIN_EMAIL) adminPanel.classList.remove('hidden');
-      } else {
-        loginBtn.textContent = "Login with Google";
-        adminPanel.classList.add('hidden');
-      }
-    });
-
-    // 🖼️ Upload image to Firebase Storage
-    imageFile.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      uploadStatus.classList.remove('hidden');
-      const storageRef = storage.ref(`news-images/${Date.now()}-${file.name}`);
-      await storageRef.put(file);
-      uploadedImageURL = await storageRef.getDownloadURL();
-      uploadStatus.textContent = "✅ Image uploaded successfully!";
-      showPreview();
-      setTimeout(() => uploadStatus.classList.add('hidden'), 2000);
-    });
-
-    // 📰 Publish News
-    publishBtn.addEventListener('click', async () => {
-      const user = auth.currentUser;
-      if (!user || user.email !== ADMIN_EMAIL) return alert("Only admin can publish!");
-      const title = titleField.value.trim();
-      const content = contentField.value.trim();
-      if (!title || !content) return alert("Please fill all fields!");
-      await db.collection('vasai_news').add({
-        title, content, image: uploadedImageURL || "",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      clearForm();
-    });
-
-    // ✏️ Edit News
-    window.editNews = (id, data) => {
-      editId = id;
-      titleField.value = data.title;
-      contentField.value = data.content;
-      uploadedImageURL = data.image || "";
-      showPreview();
-      publishBtn.classList.add('hidden');
-      updateBtn.classList.remove('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    // 💾 Update News
-    updateBtn.addEventListener('click', async () => {
-      if (!editId) return;
-      await db.collection('vasai_news').doc(editId).update({
-        title: titleField.value.trim(),
-        content: contentField.value.trim(),
-        image: uploadedImageURL
-      });
-      clearForm();
-    });
-
-    // 🧹 Clear Form
-    function clearForm() {
-      titleField.value = "";
-      contentField.value = "";
-      imageFile.value = "";
-      uploadedImageURL = "";
-      previewBox.classList.add('hidden');
-      publishBtn.classList.remove('hidden');
-      updateBtn.classList.add('hidden');
-      editId = null;
+  auth.onAuthStateChanged(user => {
+    if(user){
+      loginBtn.textContent = "Logout";
+      if(user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) adminPanel.classList.remove('hidden');
+    } else {
+      loginBtn.textContent = "Login with Google";
+      adminPanel.classList.add('hidden');
     }
+  });
 
-    // 🔍 Live Preview Function
-    function showPreview() {
-      const title = titleField.value.trim();
-      const content = contentField.value.trim();
-      previewTitle.textContent = title || "— Preview Title —";
-      previewContent.textContent = content || "— Content will appear here —";
-      if (uploadedImageURL) {
-        previewImage.src = uploadedImageURL;
-        previewImage.classList.remove('hidden');
-      } else previewImage.classList.add('hidden');
-      previewBox.classList.remove('hidden');
-    }
+  // 🖼️ Upload image
+  imageFile.addEventListener('change', async e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    uploadStatus.classList.remove('hidden'); publishBtn.disabled=true;
+    const storageRef = storage.ref(`news-images/${Date.now()}-${file.name}`);
+    await storageRef.put(file);
+    uploadedImageURL = await storageRef.getDownloadURL();
+    uploadStatus.textContent = "✅ Image uploaded successfully!"; publishBtn.disabled=false;
+    showPreview();
+    setTimeout(()=>uploadStatus.classList.add('hidden'),2000);
+  });
 
-    titleField.addEventListener('input', showPreview);
-    contentField.addEventListener('input', showPreview);
+  // 📰 Publish
+  publishBtn.addEventListener('click', async ()=>{
+    const user = auth.currentUser;
+    if(!user || user.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) return alert("Only admin can publish!");
+    const title = titleField.value.trim();
+    const content = contentField.value.trim();
+    if(!title||!content) return alert("Please fill all fields!");
+    await db.collection('vasai_news').add({
+      title, content, image: uploadedImageURL||"",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    clearForm();
+  });
 
-    // 🗑️ Delete
-    window.deleteNews = async (id) => {
-      if (confirm("Delete this news?")) await db.collection('vasai_news').doc(id).delete();
-    };
+  // ✏️ Edit
+  window.editNews = (id, data)=>{
+    editId=id;
+    titleField.value=data.title;
+    contentField.value=data.content;
+    uploadedImageURL=data.image||"";
+    showPreview();
+    publishBtn.classList.add('hidden'); updateBtn.classList.remove('hidden');
+    window.scrollTo({top:0,behavior:'smooth'});
+  };
 
-    // 🔄 Load News + Breaking News
-    function loadNews() {
-      db.collection('vasai_news').orderBy('createdAt','desc').onSnapshot(snapshot => {
-        newsList.innerHTML = "";
-        let headlines = [];
-        snapshot.forEach(doc => {
-          const news = doc.data();
-          if (news.title) headlines.push(news.title);
-          const card = document.createElement('div');
-          card.className = "card";
-          card.innerHTML = `
-            ${news.image ? `<img src="${news.image}" alt="">` : ""}
-            <div class="card-title">${news.title}</div>
-            <div class="card-content">${news.content}</div>
-            ${auth.currentUser && auth.currentUser.email === ADMIN_EMAIL
-              ? `<div class="actions">
-                   <button onclick='editNews("${doc.id}", ${JSON.stringify(news).replace(/'/g, "\\'")})'>Edit</button>
-                   <button onclick='deleteNews("${doc.id}")'>Delete</button>
-                 </div>` : ""}
-          `;
-          newsList.appendChild(card);
-        });
-        breakingNews.textContent = headlines.slice(0,5).join(" 🔹 ");
+  // 💾 Update
+  updateBtn.addEventListener('click', async ()=>{
+    if(!editId) return;
+    await db.collection('vasai_news').doc(editId).update({
+      title:titleField.value.trim(),
+      content:contentField.value.trim(),
+      image:uploadedImageURL
+    });
+    clearForm();
+  });
+
+  // 🧹 Clear
+  function clearForm(){
+    titleField.value=""; contentField.value=""; imageFile.value="";
+    uploadedImageURL=""; previewBox.classList.add('hidden');
+    publishBtn.classList.remove('hidden'); updateBtn.classList.add('hidden'); editId=null;
+  }
+
+  // 🔍 Preview
+  function showPreview(){
+    const title=titleField.value.trim();
+    const content=contentField.value.trim();
+    previewTitle.textContent=title||"— Preview Title —";
+    previewContent.textContent=content||"— Content will appear here —";
+    if(uploadedImageURL){ previewImage.src=uploadedImageURL; previewImage.classList.remove('hidden'); }
+    else previewImage.classList.add('hidden');
+    previewBox.classList.remove('hidden');
+  }
+
+  titleField.addEventListener('input', showPreview);
+  contentField.addEventListener('input', showPreview);
+
+  // 🗑️ Delete
+  window.deleteNews = async (id)=>{
+    if(confirm("Delete this news?")) await db.collection('vasai_news').doc(id).delete();
+  };
+
+  // 🔄 Load news + ticker
+  function loadNews(){
+    db.collection('vasai_news').orderBy('createdAt','desc').onSnapshot(snapshot=>{
+      newsList.innerHTML=""; let headlines=[];
+      snapshot.forEach(doc=>{
+        const news=doc.data();
+        if(news.title) headlines.push(news.title);
+        const card=document.createElement('div'); card.className="card";
+        card.innerHTML=`
+          ${news.image?`<img src="${news.image}" alt="">`:""}
+          <div class="card-title">${news.title}</div>
+          <div class="card-content">${news.content}</div>
+          ${auth.currentUser && auth.currentUser.email.toLowerCase()===ADMIN_EMAIL.toLowerCase()
+            ? `<div class="actions">
+                 <button onclick='editNews("${doc.id}", ${JSON.stringify(news).replace(/'/g,"\\'")})'>Edit</button>
+                 <button onclick='deleteNews("${doc.id}")'>Delete</button>
+               </div>`:""}
+        `;
+        newsList.appendChild(card);
       });
-    }
-
-    loadNews();
-  </script>
+      breakingNews.textContent=headlines.slice(0,5).join(" 🔹 ");
+    });
+  }
+  loadNews();
+</script>
 
 </body>
 </html>
