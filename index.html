@@ -179,7 +179,13 @@ db.collection("vasai_news").orderBy("time","desc").onSnapshot(snap=>{
     const txt=d.blocks.find(b=>b.type=="text")?.text.substring(0,80)+"..."||"";
     const card=document.createElement("div");
     card.className="card";
-    card.innerHTML=`<img src='${img}' class='image-zoom'><div class='card-body'><h3>${d.title}</h3><p>${txt}</p></div>`;
+card.innerHTML = `
+  <img src='${img}' class='image-zoom'>
+  <div class='card-body'>
+    <h3>${d.title}</h3>
+    <p>${txt.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</p>
+  </div>`;
+
     card.onclick=()=>showModal(d);
     postsArea.appendChild(card);
   });
