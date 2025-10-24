@@ -197,7 +197,13 @@ noticeRef.onSnapshot(snap=>{noticeText.textContent=snap.exists?snap.data().text:
 function showModal(d){
   modalContent.innerHTML=`<h2 class='text-lg font-bold mb-2'>${d.title}</h2>`;
   d.blocks.forEach(b=>{
-    if(b.type=="text") modalContent.innerHTML+=`<p class='mb-2 text-gray-800'>${b.text}</p>`;
+if(b.type=="text") {
+  const p = document.createElement("p");
+  p.className = "mb-2 text-gray-800";
+  p.textContent = b.text; // ✅ safe, prevents showing code
+  modalContent.appendChild(p);
+}
+
     else modalContent.innerHTML+=`<img src='${b.url}' class='image-zoom'>`;
   });
   const user=auth.currentUser;
