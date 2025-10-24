@@ -2,245 +2,154 @@
 <html lang="hi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vasai Live News</title>
 <script src="https://cdn.tailwindcss.com"></script>
 
-<!-- ✅ Firebase Non-Module SDKs (For Blogger) -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script type="module">
+// --- Firebase Setup ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } 
+  from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getDatabase, ref, set, push, onValue } 
+  from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
-<style>
-/* same CSS as before (no change) */
-</style>
-</head>
-<body>
-
-<header>
-  <div class="flex items-center">
-    <img src="https://i.postimg.cc/vTb8F94w/vasalive-png.jpg" alt="Logo">
-    <h1 class="font-bold text-xl">Vasai Live News</h1>
-  </div>
-  <div class="header-buttons">
-    <button id="loginBtn" class="bg-green-500 text-white">Login</button>
-    <button id="logoutBtn" class="hidden bg-red-600 text-white">Logout</button>
-  </div>
-</header>
-
-<div class="notice-ticker"><span class="ticker-text" id="noticeText"></span></div>
-<div class="headline-ticker"><span class="ticker-text" id="headlineText"></span></div>
-
-<section id="noticeEditor" class="editor hidden">
-  <h2>📰 Admin Notice</h2>
-  <input id="noticeInput" placeholder="Enter notice text...">
-  <button id="saveNoticeBtn">Save</button>
-</section>
-
-<section id="editorArea" class="editor hidden">
-  <h2>🖋️ Admin: Create/Edit News</h2>
-  <input id="aTitle" placeholder="Title">
-  <input id="aCat" placeholder="Category">
-  <div id="blocksList"></div>
-  <button id="addTextBtn">Add Text</button>
-  <button id="addImageBtn">Add Image (Max 5)</button>
-  <button id="publishBtn">Publish</button>
-</section>
-
-<section class="posts-grid" id="postsArea"></section>
-
-<!-- Modal -->
-<div id="modalBg" class="modal-bg">
-  <div class="modal">
-    <button id="modalClose" class="modal-close">X</button>
-    <div id="modalContent"></div>
-  </div>
-</div>
-
-<!-- ✅ Zoom Modal Fixed -->
-<div id="zoomModal" class="zoom-modal">
-  <button class="zoom-close">×</button>
-  <img id="zoomImg" src="">
-</div>
-
-<script>
+// --- Config ---
 const firebaseConfig = {
-  apiKey:"AIzaSyDMvkPqFKDjrMaLlBkercBYoLxEs1GEbng",
-  authDomain:"all-madrsa.firebaseapp.com",
-  projectId:"all-madrsa",
-  storageBucket:"all-madrsa.appspot.com",
-  messagingSenderId:"619313835874",
-  appId:"1:619313835874:web:e33f0c8bdef6d1a7f31e9f"
+  apiKey: "AIzaSyC9tqZWhUN_cCdps9e81lsOezoqEZL2XJA",
+  authDomain: "vasailive-news.firebaseapp.com",
+  databaseURL: "https://vasailive-news-default-rtdb.firebaseio.com",
+  projectId: "vasailive-news",
+  storageBucket: "vasailive-news.appspot.com",
+  messagingSenderId: "1033432728938",
+  appId: "1:1033432728938:web:0c9f60a6c41205a56f5a5f"
 };
 
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const ADMIN_EMAIL="zaradigitalseva@gmail.com";
-const IMGBB_API_KEY="d12c2e4a8650157b2b6b9fe85336ea43";
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-// DOM
-const loginBtn=document.getElementById("loginBtn");
-const logoutBtn=document.getElementById("logoutBtn");
-const editorArea=document.getElementById("editorArea");
-const noticeEditor=document.getElementById("noticeEditor");
-const postsArea=document.getElementById("postsArea");
-const blocksList=document.getElementById("blocksList");
-const aTitle=document.getElementById("aTitle");
-const aCat=document.getElementById("aCat");
-const noticeText=document.getElementById("noticeText");
-const headlineText=document.getElementById("headlineText");
-const modalBg=document.getElementById("modalBg");
-const modalClose=document.getElementById("modalClose");
-const modalContent=document.getElementById("modalContent");
-const zoomModal=document.getElementById("zoomModal");
-const zoomImg=document.getElementById("zoomImg");
+// --- DOM elements ---
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const noticeBoard = document.getElementById("noticeBoard");
+const newsContainer = document.getElementById("newsContainer");
+const modal = document.getElementById("modal");
+const modalContent = document.getElementById("modalContent");
+const modalClose = document.getElementById("modalClose");
 
-let editingId=null;
+// --- Auth ---
+loginBtn.onclick = () => signInWithPopup(auth, provider);
+logoutBtn.onclick = () => signOut(auth);
 
-// Auth
-loginBtn.onclick=()=>auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-logoutBtn.onclick=()=>auth.signOut();
-
-auth.onAuthStateChanged(user=>{
-  if(user && user.email===ADMIN_EMAIL){
-    editorArea.classList.remove("hidden");
-    noticeEditor.classList.remove("hidden");
+onAuthStateChanged(auth, user => {
+  if (user) {
     loginBtn.classList.add("hidden");
     logoutBtn.classList.remove("hidden");
-  }else{
-    editorArea.classList.add("hidden");
-    noticeEditor.classList.add("hidden");
+  } else {
     loginBtn.classList.remove("hidden");
     logoutBtn.classList.add("hidden");
   }
 });
 
-// Upload to ImgBB
-async function uploadToImgBB(file){
-  const formData=new FormData();
-  formData.append("image",file);
-  const res=await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`,{method:"POST",body:formData});
-  const data=await res.json();
-  return data.data.url;
-}
-
-// Add text/image blocks
-document.getElementById("addTextBtn").onclick=()=>{
-  const t=document.createElement("textarea");
-  t.placeholder="Write paragraph...";
-  t.dataset.type="text";
-  t.className="border p-2 w-full mb-2 rounded";
-  blocksList.appendChild(t);
-}
-document.getElementById("addImageBtn").onclick=()=>{
-  if(blocksList.querySelectorAll('input[type="file"]').length>=5){alert("Max 5 images");return;}
-  const inp=document.createElement("input");
-  inp.type="file";
-  inp.dataset.type="image";
-  inp.className="w-full mb-2";
-  blocksList.appendChild(inp);
-}
-
-// Publish
-document.getElementById("publishBtn").onclick=async()=>{
-  const title=aTitle.value.trim(),cat=aCat.value.trim();
-  if(!title)return alert("Enter title");
-  const blocks=[];
-  for(const el of blocksList.children){
-    if(el.dataset.type=="text" && el.value.trim())blocks.push({type:"text",text:el.value.trim()});
-    else if(el.type=="file" && el.files.length>0){
-      const url=await uploadToImgBB(el.files[0]);
-      if(url)blocks.push({type:"image",url});
-    }
+// --- Notice Board ---
+onValue(ref(db, "notice"), snap => {
+  noticeBoard.innerHTML = "";
+  if (snap.exists()) {
+    snap.forEach(n => {
+      const div = document.createElement("div");
+      div.className = "p-2 bg-yellow-100 border-b border-yellow-300 text-sm";
+      div.textContent = n.val().text;
+      noticeBoard.appendChild(div);
+    });
+  } else {
+    noticeBoard.innerHTML = "<div class='p-2 text-gray-500 text-sm'>कोई सूचना नहीं</div>";
   }
-  if(blocks.length===0)return alert("Add content");
-  if(editingId){
-    await db.collection("vasai_news").doc(editingId).update({title,category:cat,blocks,time:Date.now()});
-    editingId=null;
-  }else{
-    await db.collection("vasai_news").add({title,category:cat,blocks,time:Date.now()});
-  }
-  aTitle.value=aCat.value=""; blocksList.innerHTML="";
-};
-
-// Notice
-const noticeRef=db.collection("settings").doc("notice");
-document.getElementById("saveNoticeBtn").onclick=()=>{
-  noticeRef.set({text:document.getElementById("noticeInput").value.trim()});
-};
-
-// Load posts
-db.collection("vasai_news").orderBy("time","desc").onSnapshot(snap=>{
-  const posts=snap.docs.map(d=>({id:d.id,...d.data()}));
-  postsArea.innerHTML="";
-  posts.forEach(d=>{
-    const img=d.blocks.find(b=>b.type=="image")?.url||"https://via.placeholder.com/300x150?text=No+Image";
-    const txt=d.blocks.find(b=>b.type=="text")?.text.substring(0,80)+"..."||"";
-    const card=document.createElement("div");
-    card.className="card";
-card.innerHTML = `
-  <img src='${img}' class='image-zoom'>
-  <div class='card-body'>
-    <h3>${d.title}</h3>
-    <p>${txt.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</p>
-  </div>`;
-
-    card.onclick=()=>showModal(d);
-    postsArea.appendChild(card);
-  });
-  headlineText.textContent=posts.slice(0,5).map(p=>p.title).join(" — ");
 });
-noticeRef.onSnapshot(snap=>{noticeText.textContent=snap.exists?snap.data().text:"";});
 
-// Modal
-function showModal(d){
-  modalContent.innerHTML=`<h2 class='text-lg font-bold mb-2'>${d.title}</h2>`;
-  d.blocks.forEach(b=>{
-if(b.type=="text") {
+// --- Load News Posts ---
+onValue(ref(db, "posts"), snap => {
+  newsContainer.innerHTML = "";
+  if (!snap.exists()) {
+    newsContainer.innerHTML = "<p class='text-gray-500'>अभी कोई पोस्ट नहीं है।</p>";
+    return;
+  }
+
+  // Show 5 latest posts with auto-scroll
+  const posts = [];
+  snap.forEach(post => posts.unshift({ key: post.key, ...post.val() }));
+
+  posts.slice(0, 5).forEach(d => {
+    const img = d.image || "https://via.placeholder.com/600x300?text=No+Image";
+    const txt = d.text ? d.text.slice(0, 150) + "..." : "";
+
+    const card = document.createElement("div");
+    card.className = "bg-white shadow rounded-lg overflow-hidden cursor-pointer hover:scale-[1.02] transition-transform duration-200";
+    card.innerHTML = `
+      <img src='${img}' class='w-full h-48 object-cover'>
+      <div class='p-4'>
+        <h3 class='text-lg font-semibold mb-2'>${d.title}</h3>
+        <p class='text-gray-700 text-sm'>${txt.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</p>
+      </div>`;
+    card.onclick = () => openModal(d);
+    newsContainer.appendChild(card);
+  });
+
+  autoScroll();
+});
+
+// --- Auto-scroll animation ---
+function autoScroll() {
+  let scrollPosition = 0;
+  setInterval(() => {
+    newsContainer.scrollTo({ top: scrollPosition, behavior: "smooth" });
+    scrollPosition += 100;
+    if (scrollPosition >= newsContainer.scrollHeight - newsContainer.clientHeight) {
+      scrollPosition = 0;
+    }
+  }, 3000);
+}
+
+// --- Modal open ---
+function openModal(data) {
+  modal.classList.remove("hidden");
+  modalContent.innerHTML = `
+    <h2 class='text-xl font-bold mb-2'>${data.title}</h2>
+    <img src='${data.image || "https://via.placeholder.com/600x300"}' class='rounded mb-4 w-full'>
+  `;
   const p = document.createElement("p");
-  p.className = "mb-2 text-gray-800";
-  p.textContent = b.text; // ✅ safe, prevents showing code
+  p.className = "text-gray-800";
+  p.textContent = data.text || "";
   modalContent.appendChild(p);
 }
 
-    else modalContent.innerHTML+=`<img src='${b.url}' class='image-zoom'>`;
-  });
-  const user=auth.currentUser;
-  if(user && user.email===ADMIN_EMAIL){
-    const editBtn=document.createElement("button");
-    editBtn.textContent="Edit";
-    editBtn.className="bg-gray-200 px-3 py-1 rounded mr-2";
-    editBtn.onclick=()=>{
-      editingId=d.id;
-      aTitle.value=d.title;
-      aCat.value=d.category;
-      blocksList.innerHTML="";
-      d.blocks.forEach(b=>{
-        if(b.type=="text"){const t=document.createElement("textarea");t.value=b.text;t.dataset.type="text";t.className="border p-2 w-full mb-2 rounded";blocksList.appendChild(t);}
-        else{const inp=document.createElement("input");inp.type="file";inp.className="w-full mb-2";blocksList.appendChild(inp);}
-      });
-      modalBg.style.display="none";
-    };
-    const delBtn=document.createElement("button");
-    delBtn.textContent="Delete";
-    delBtn.className="bg-red-500 text-white px-3 py-1 rounded";
-    delBtn.onclick=async()=>{if(confirm("Delete this post?")) await db.collection("vasai_news").doc(d.id).delete(); modalBg.style.display="none";};
-    modalContent.appendChild(editBtn);
-    modalContent.appendChild(delBtn);
-  }
-  modalBg.style.display="flex";
-  modalContent.querySelectorAll("img.image-zoom").forEach(img=>{
-    img.onclick=()=>{
-      zoomImg.src=img.src;
-      zoomModal.style.display="flex";
-    }
-  });
-}
-modalClose.onclick=()=>modalBg.style.display="none";
-modalBg.onclick=e=>{if(e.target===modalBg)modalBg.style.display="none";}
-document.querySelector(".zoom-close").onclick=()=>zoomModal.style.display="none";
-zoomModal.onclick=e=>{if(e.target===zoomModal)zoomModal.style.display="none";}
+modalClose.onclick = () => modal.classList.add("hidden");
+window.onclick = e => { if (e.target === modal) modal.classList.add("hidden"); };
 </script>
+</head>
+
+<body class="bg-gray-50 text-gray-900 font-sans">
+  <header class="bg-red-600 text-white p-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold">Vasai Live News</h1>
+    <div>
+      <button id="loginBtn" class="bg-white text-red-600 px-3 py-1 rounded">Google Login</button>
+      <button id="logoutBtn" class="bg-white text-red-600 px-3 py-1 rounded hidden">Logout</button>
+    </div>
+  </header>
+
+  <div id="noticeBoard" class="bg-yellow-50 border-b border-yellow-200 text-center text-sm"></div>
+
+  <main class="p-4">
+    <div id="newsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[80vh] overflow-y-auto rounded-xl"></div>
+  </main>
+
+  <!-- Modal -->
+  <div id="modal" class="hidden fixed inset-0 bg-black/60 flex justify-center items-center">
+    <div class="bg-white w-11/12 md:w-2/3 lg:w-1/2 p-4 rounded-lg shadow-xl relative">
+      <button id="modalClose" class="absolute top-2 right-2 text-gray-600 text-2xl">&times;</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
 </body>
 </html>
